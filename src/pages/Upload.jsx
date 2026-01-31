@@ -1,7 +1,13 @@
 import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import NavBar from "../functionalities/NavBar.jsx";
+import { apiFetch } from "../lib/api";
+import { getUser, isLoggedIn } from "../lib/auth";
 
 function Upload() {
+  const navigate = useNavigate();
+  const user = getUser();
+  const canUpload = isLoggedIn() && user?.role === "artist";
   const [accept, setAccept] = useState(false);
   const [imageFile, setImageFile] = useState(null);
 
@@ -9,44 +15,51 @@ function Upload() {
   const [title, setTitle] = useState("");
   const [genre, setGenre] = useState("");
   const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async () => {
-    if (!accept) {
-      alert("You must accept the content policy");
+    setError("");
+    if (!canUpload) {
+      setError("Please sign in with an artist account to upload.");
       return;
     }
-    if (!audioFile || !imageFile || !title) {
-      alert("Please fill required fields");
+    if (!accept) {
+      setError("You must accept the content policy");
+      return;
+    }
+    if (!audioFile || !title || !description) {
+      setError("Audio, title, and description are required");
       return;
     }
 
     const formData = new FormData();
     formData.append("audio", audioFile);
-    formData.append("image", imageFile);
+    if (imageFile) formData.append("image", imageFile);
     formData.append("title", title);
     formData.append("genre", genre);
     formData.append("description", description);
+    formData.append("isPolicyAccepted", "true");
 
     try {
-      const response = await fetch("http://localhost:5000/upload", {
+      setIsSubmitting(true);
+      const data = await apiFetch("/upload", {
         method: "POST",
         body: formData,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        console.log("Upload success:", data);
-      } else {
-        console.error("Upload failed:", data);
-      }
+      console.log("Upload success:", data);
+      navigate("/explore");
     } catch (error) {
       console.error("Error:", error);
+      setError(error?.message || "Upload failed");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100 px-6 pt-32 pb-24 font-['Tektur',sans-serif]">
+    <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100 px-6 pt-32 pb-24 font-['Tektur',sans-serif]">
       <NavBar />
       <div className="mx-auto max-w-5xl">
         <div className="mb-12">
@@ -61,6 +74,18 @@ function Upload() {
 
         <div className="grid gap-10 md:grid-cols-2">
           <div className="rounded-[2.5rem] bg-white/5 backdrop-blur-2xl border border-white/10 p-10">
+
+            {error && (
+              <div className="mb-6 rounded-2xl bg-red-500/10 border border-red-500/20 px-6 py-4 text-sm text-red-200">
+                {error}
+              </div>
+            )}
+
+            {!canUpload && (
+              <div className="mb-6 rounded-2xl bg-white/5 border border-white/10 px-6 py-4 text-sm text-zinc-300">
+                You’re not signed in as an artist. <Link className="underline" to="/signin">Sign in</Link> to upload.
+              </div>
+            )}
 
             {/* Audio Upload */}
             <label className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center hover:border-white/30 transition cursor-pointer block">
@@ -105,6 +130,12 @@ function Upload() {
             {imageFile && (
               <div className="mt-3 text-sm text-zinc-400">
                 Selected image: {imageFile.name}
+              </div>
+            )}
+
+            {audioFile && (
+              <div className="mt-3 text-sm text-zinc-400">
+                Selected audio: {audioFile.name}
               </div>
             )}
 
@@ -187,15 +218,15 @@ function Upload() {
 
             <div className="mt-10">
               <button
-                disabled={!accept}
+                disabled={!canUpload || !accept || isSubmitting}
                 onClick={handleSubmit}
                 className={`w-full text-center rounded-xl py-3 font-medium transition ${
-                  accept
+                  canUpload && accept && !isSubmitting
                     ? "bg-white text-black hover:bg-zinc-200 cursor-pointer"
                     : "bg-white/10 text-zinc-500 cursor-not-allowed"
                 }`}
               >
-                Publish Performance
+                {isSubmitting ? "Publishing..." : "Publish Performance"}
               </button>
 
               <div className="mt-3 text-center text-xs text-zinc-500">

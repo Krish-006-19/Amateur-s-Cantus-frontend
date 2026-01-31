@@ -7,6 +7,14 @@ import LeaderBoard from "./pages/LeaderBoard";
 import Explore from "./pages/Explore";
 import PlayList from "./pages/PlayList";
 import SongPage from "./pages/SongPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminReports from "./pages/AdminReports";
+import AdminArtists from "./pages/AdminArtists";
+import AdminMusic from "./pages/AdminMusic";
+import AdminUsers from "./pages/AdminUsers";
+import Profile from "./pages/Profile";
+import Reports from "./pages/Reports";
+import GlobalPlayer from "./GlobalPlayer";
 
 function AllRoutes() {
   return (
@@ -19,8 +27,16 @@ function AllRoutes() {
         <Route path="/leaderboard" element={<LeaderBoard />} />
         <Route path="/explore" element={<Explore />} />
         <Route path="/playlist" element={<PlayList />} />
-        <Route path="/track" element={<SongPage />} />
+        <Route path="/track/:id" element={<SongPage />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/reports" element={<AdminReports />} />
+        <Route path="/admin/artists" element={<AdminArtists />} />
+        <Route path="/admin/music" element={<AdminMusic />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
       </Routes>
+      <GlobalPlayer />
     </BrowserRouter>
   );
 }

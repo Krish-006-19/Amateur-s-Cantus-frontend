@@ -4,7 +4,7 @@ import NavBar from "./functionalities/NavBar";
 
 function App() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100 font-['Tektur',sans-serif]">
+    <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100 font-['Tektur',sans-serif]">
       <NavBar />
 
       <div className="pt-40 pb-32 px-6 flex justify-center">
