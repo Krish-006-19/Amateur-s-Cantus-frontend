@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import NavBar from "../functionalities/NavBar";
 import { apiFetch } from "../lib/api";
-import { getUser, isLoggedIn, setAuth, clearAuth, getToken } from "../lib/auth";
+import { isLoggedIn, setAuth, clearAuth, getToken } from "../lib/auth";
 
 function Profile() {
   const navigate = useNavigate();

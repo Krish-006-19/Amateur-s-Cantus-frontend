@@ -30,7 +30,6 @@ function SongPage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
-    let isMounted = true;
     const currentUser = getUser();
     if (
       isLoggedIn() &&

@@ -59,6 +59,7 @@ export async function apiFetch(path, options = {}) {
     const err = new Error(message);
     err.status = res.status;
     err.data = data;
+    err.retryAfter = res.headers.get('retry-after') || null;
     throw err;
   }
 

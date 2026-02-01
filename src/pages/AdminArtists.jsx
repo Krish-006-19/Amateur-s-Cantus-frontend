@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import NavBar from "../functionalities/NavBar";
 import { apiFetch } from "../lib/api";
@@ -19,7 +19,7 @@ export default function AdminArtists() {
     setTimeout(() => setToast(""), 2000);
   };
 
-  const load = async () => {
+  const load = useCallback(async () => {
     if (!canUse) {
       setIsLoading(false);
       return;
@@ -34,11 +34,11 @@ export default function AdminArtists() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [canUse]);
 
   useEffect(() => {
     load();
-  }, [canUse]);
+  }, [load]);
 
   const deactivate = async (artistId) => {
     if (!artistId) return;

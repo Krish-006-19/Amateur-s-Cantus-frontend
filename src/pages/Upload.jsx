@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import NavBar from "../functionalities/NavBar.jsx";
 import { apiFetch } from "../lib/api";
@@ -18,6 +18,63 @@ function Upload() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const [quota, setQuota] = useState(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+
+  const quotaRemaining = quota ? Number(quota.remaining) : null;
+  const quotaExhausted = quotaRemaining !== null && quotaRemaining <= 0;
+
+  const inputsDisabled = !canUpload || quotaExhausted || isSubmitting;
+
+  const fetchQuota = async () => {
+    if (!canUpload) {
+      setQuota(null);
+      return null;
+    }
+
+    try {
+      setQuotaLoading(true);
+      const data = await apiFetch("/api/music/upload-quota");
+      setQuota(data);
+      return data;
+    } catch {
+      // If quota endpoint fails, don't block upload (backend still hard-rejects on limit)
+      setQuota(null);
+      return null;
+    } finally {
+      setQuotaLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchQuota();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUpload]);
+
+  useEffect(() => {
+    if (!canUpload) return;
+
+    const onFocus = () => void fetchQuota();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void fetchQuota();
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // Periodic refresh so the UI re-enables when credits refill
+    const interval = window.setInterval(() => {
+      void fetchQuota();
+    }, 30_000);
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(interval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canUpload]);
+
   const handleSubmit = async () => {
     setError("");
     if (!canUpload) {
@@ -30,6 +87,13 @@ function Upload() {
     }
     if (!audioFile || !title || !description) {
       setError("Audio, title, and description are required");
+      return;
+    }
+
+    // Preflight quota check BEFORE sending large FormData
+    const latestQuota = await fetchQuota();
+    if (latestQuota && Number(latestQuota.remaining) <= 0) {
+      setError(`Daily upload limit reached. You can upload again tomorrow (UTC).`);
       return;
     }
 
@@ -49,10 +113,21 @@ function Upload() {
       });
 
       console.log("Upload success:", data);
+      // Refresh quota after successful upload
+      await fetchQuota();
       navigate("/explore");
     } catch (error) {
       console.error("Error:", error);
-      setError(error?.message || "Upload failed");
+      if (error?.status === 429) {
+        const retryAfter = error?.retryAfter;
+        setError(
+          retryAfter
+            ? `${error?.message || "Too many requests"} Try again in ${retryAfter}s.`
+            : error?.message || "Too many requests"
+        );
+      } else {
+        setError(error?.message || "Upload failed");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -87,8 +162,30 @@ function Upload() {
               </div>
             )}
 
+            {canUpload && (
+              <div className="mb-6 rounded-2xl bg-white/5 border border-white/10 px-6 py-4 text-sm text-zinc-300">
+                {quotaLoading ? (
+                  <div>Checking upload quota…</div>
+                ) : quota ? (
+                  <div>
+                    Uploads left today: <span className="text-white font-medium">{quota.remaining}</span> / {quota.max}
+                  </div>
+                ) : (
+                  <div>Upload quota: unavailable (will be enforced by server)</div>
+                )}
+              </div>
+            )}
+
+            {canUpload && quotaExhausted && (
+              <div className="mb-6 rounded-2xl bg-amber-500/10 border border-amber-500/20 px-6 py-4 text-sm text-amber-200">
+                Daily limit reached. Upload inputs are disabled until credits refill.
+              </div>
+            )}
+
             {/* Audio Upload */}
-            <label className="rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center hover:border-white/30 transition cursor-pointer block">
+            <label className={`rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center transition block ${
+              inputsDisabled ? "opacity-50 cursor-not-allowed" : "hover:border-white/30 cursor-pointer"
+            }`}>
               <div className="text-lg font-medium">
                 Drop your audio file here
               </div>
@@ -102,13 +199,16 @@ function Upload() {
                 type="file"
                 accept="audio/mpeg"
                 className="hidden"
+                disabled={inputsDisabled}
                 onChange={(e) => setAudioFile(e.target.files[0])}
               />
 
             </label>
 
             {/* Image Upload */}
-            <label className="mt-6 rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center hover:border-white/30 transition cursor-pointer block">
+            <label className={`mt-6 rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center transition block ${
+              inputsDisabled ? "opacity-50 cursor-not-allowed" : "hover:border-white/30 cursor-pointer"
+            }`}>
               <div className="text-lg font-medium">
                 Drop your cover image here
               </div>
@@ -123,6 +223,7 @@ function Upload() {
                 type="file"
                 accept="image/png, image/jpeg"
                 className="hidden"
+                disabled={inputsDisabled}
                 onChange={(e) => setImageFile(e.target.files[0])}
               />
             </label>
@@ -147,6 +248,7 @@ function Upload() {
                   placeholder="Song title"
                   className="w-full rounded-xl bg-white/10 backdrop-blur-md border border-white/10 px-4 py-3 outline-none focus:border-white/30 text-sm"
                   value={title}
+                  disabled={inputsDisabled}
                   onChange={(e) => setTitle(e.target.value)}
                 />
               </div>
@@ -160,6 +262,7 @@ function Upload() {
                   placeholder="Acoustic, Classical, Indie..."
                   className="w-full rounded-xl bg-white/10 backdrop-blur-md border border-white/10 px-4 py-3 outline-none focus:border-white/30 text-sm"
                   value={genre}
+                  disabled={inputsDisabled}
                   onChange={(e) => setGenre(e.target.value)}
                 />
               </div>
@@ -171,6 +274,7 @@ function Upload() {
                   placeholder="Tell listeners something about this performance"
                   className="w-full rounded-xl bg-white/10 backdrop-blur-md border border-white/10 px-4 py-3 outline-none focus:border-white/30 text-sm resize-none"
                   value={description}
+                  disabled={inputsDisabled}
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
@@ -206,6 +310,7 @@ function Upload() {
                 <input
                   type="checkbox"
                   className="mt-1 accent-white cursor-pointer"
+                  disabled={inputsDisabled}
                   onChange={() => setAccept((prev) => !prev)}
                 />
                 <div className="text-sm text-zinc-400 leading-relaxed">
@@ -218,10 +323,10 @@ function Upload() {
 
             <div className="mt-10">
               <button
-                disabled={!canUpload || !accept || isSubmitting}
+                disabled={!canUpload || !accept || isSubmitting || quotaExhausted}
                 onClick={handleSubmit}
                 className={`w-full text-center rounded-xl py-3 font-medium transition ${
-                  canUpload && accept && !isSubmitting
+                  canUpload && accept && !isSubmitting && !quotaExhausted
                     ? "bg-white text-black hover:bg-zinc-200 cursor-pointer"
                     : "bg-white/10 text-zinc-500 cursor-not-allowed"
                 }`}

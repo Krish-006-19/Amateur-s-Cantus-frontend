@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+
+/* eslint-disable react-hooks/set-state-in-effect */
 import { Link } from "react-router-dom";
 import NavBar from "../functionalities/NavBar";
 import { apiFetch } from "../lib/api";
@@ -12,11 +14,6 @@ export default function AdminUsers() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [query, setQuery] = useState("");
-
-  const [resetFor, setResetFor] = useState(null);
-  const [newPassword, setNewPassword] = useState("");
-  const [isResetting, setIsResetting] = useState(false);
-  const [resetMsg, setResetMsg] = useState("");
 
   useEffect(() => {
     if (!canUse) return;
@@ -55,35 +52,6 @@ export default function AdminUsers() {
     });
   }, [users, query]);
 
-  const startReset = (u) => {
-    setResetMsg("");
-    setNewPassword("");
-    setResetFor(u);
-  };
-
-  const doReset = async () => {
-    if (!resetFor?._id) return;
-    setResetMsg("");
-    if (!newPassword || newPassword.length < 6) {
-      setResetMsg("Password must be at least 6 characters");
-      return;
-    }
-
-    try {
-      setIsResetting(true);
-      await apiFetch(`/api/admin/users/${resetFor._id}/password`, {
-        method: "PATCH",
-        body: { password: newPassword },
-      });
-      setResetMsg("Password reset successfully");
-      setNewPassword("");
-    } catch (e) {
-      setResetMsg(e?.message || "Password reset failed");
-    } finally {
-      setIsResetting(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-linear-to-br from-zinc-950 via-zinc-900 to-black text-zinc-100 px-6 pt-32 pb-24 font-['Tektur',sans-serif]">
       <NavBar />
@@ -92,7 +60,7 @@ export default function AdminUsers() {
           <div>
             <div className="text-4xl font-bold font-['Tektur',sans-serif]">Users</div>
             <div className="mt-3 text-zinc-400 max-w-2xl">
-              Admin can view user emails and manage accounts. Passwords are stored hashed and cannot be viewed; you can only reset them.
+              Admin can view user emails and manage accounts.
             </div>
           </div>
           <Link to="/admin" className="text-sm text-white/70 hover:text-white underline">
@@ -133,7 +101,6 @@ export default function AdminUsers() {
                       <th className="text-left font-medium px-4 py-3">Email</th>
                       <th className="text-left font-medium px-4 py-3">Role</th>
                       <th className="text-left font-medium px-4 py-3">Status</th>
-                      <th className="text-right font-medium px-4 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -143,20 +110,11 @@ export default function AdminUsers() {
                         <td className="px-4 py-3 text-zinc-300">{u.email}</td>
                         <td className="px-4 py-3 text-zinc-300">{u.role}</td>
                         <td className="px-4 py-3 text-zinc-300">{u.status}</td>
-                        <td className="px-4 py-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() => startReset(u)}
-                            className="rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 px-3 py-1.5 text-xs text-zinc-100"
-                          >
-                            Reset password
-                          </button>
-                        </td>
                       </tr>
                     ))}
                     {!isLoading && filtered.length === 0 && (
                       <tr>
-                        <td colSpan={5} className="px-4 py-8 text-center text-zinc-400">
+                        <td colSpan={4} className="px-4 py-8 text-center text-zinc-400">
                           No users found
                         </td>
                       </tr>
@@ -165,50 +123,6 @@ export default function AdminUsers() {
                 </table>
               </div>
             </div>
-
-            {resetFor && (
-              <div className="mt-8 rounded-4xl bg-white/5 border border-white/10 p-6">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <div className="text-lg font-semibold">Reset password</div>
-                    <div className="text-sm text-zinc-400 mt-1">
-                      {resetFor.username} — {resetFor.email}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setResetFor(null)}
-                    className="text-sm text-white/70 hover:text-white underline"
-                  >
-                    Close
-                  </button>
-                </div>
-
-                <div className="mt-4 flex flex-col sm:flex-row gap-4 sm:items-center">
-                  <input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="New password (min 6 chars)"
-                    className="w-full sm:max-w-sm rounded-xl bg-white/10 backdrop-blur-md border border-white/10 px-4 py-3 outline-none focus:border-white/30 text-sm"
-                  />
-                  <button
-                    type="button"
-                    disabled={isResetting}
-                    onClick={doReset}
-                    className="rounded-xl bg-white text-black px-4 py-3 text-sm font-medium hover:bg-zinc-200 transition disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {isResetting ? "Resetting…" : "Reset"}
-                  </button>
-                </div>
-
-                {resetMsg && (
-                  <div className="mt-3 text-sm text-zinc-300">
-                    {resetMsg}
-                  </div>
-                )}
-              </div>
-            )}
           </>
         )}
       </div>

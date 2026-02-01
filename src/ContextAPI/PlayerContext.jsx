@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+/* eslint-disable react-refresh/only-export-components */
+
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 const PlayerContext = createContext(null);
 
@@ -27,7 +29,7 @@ export function PlayerProvider({ children }) {
   // - 'playlist' => next/auto-next stays sequential within the provided queue
   // - 'explore'   => auto-next jumps to the most popular song in the queue
   // - 'smart'     => auto-next uses the "more famous, else ascending" rule
-  const playSong = (song, nextQueue, options) => {
+  const playSong = useCallback((song, nextQueue, options) => {
     if (!song) return;
     if (nextQueue && Array.isArray(nextQueue) && nextQueue.length > 0) {
       setQueue(nextQueue);
@@ -37,21 +39,21 @@ export function PlayerProvider({ children }) {
     }
     setCurrentSong(song);
     setPlaySignal((n) => n + 1);
-  };
+  }, []);
 
-  const playNext = () => {
+  const playNext = useCallback(() => {
     if (!queue.length || !currentSong) return;
     const idx = queue.findIndex((s) => s && String(s._id) === String(currentSong._id));
     if (idx < 0 || idx >= queue.length - 1) return;
     const next = queue[idx + 1];
     setCurrentSong(next);
     setPlaySignal((n) => n + 1);
-  };
+  }, [queue, currentSong]);
 
   // Smart autoplay:
   // - If there exists a more popular song than the current, jump to the nearest-more-popular one.
   // - If current is already the most popular, move to the next song in ascending popularity order (wrap-around).
-  const playSmartNext = () => {
+  const playSmartNext = useCallback(() => {
     if (!queue.length || !currentSong) return;
 
     const list = queue.filter(Boolean);
@@ -87,9 +89,9 @@ export function PlayerProvider({ children }) {
     if (!next) return;
     setCurrentSong(next);
     setPlaySignal((n) => n + 1);
-  };
+  }, [queue, currentSong]);
 
-  const playAutoNext = () => {
+  const playAutoNext = useCallback(() => {
     if (!queue.length || !currentSong) return;
 
     if (playMode === 'playlist') {
@@ -112,7 +114,7 @@ export function PlayerProvider({ children }) {
     }
 
     return playSmartNext();
-  };
+  }, [queue, currentSong, playMode, playNext, playSmartNext]);
 
   const value = useMemo(
     () => ({
@@ -126,7 +128,7 @@ export function PlayerProvider({ children }) {
       playAutoNext,
       playSignal,
     }),
-    [currentSong, queue, playSignal, playMode]
+    [currentSong, queue, playSong, playNext, playSmartNext, playAutoNext, playSignal]
   );
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
